@@ -1,28 +1,30 @@
 # --- Build Stage ---
 FROM golang:1.23-alpine AS builder
 
-# Set the working directory
+# Install git and certificates (required for fetching dependencies)
+RUN apk add --no-cache git ca-certificates
+
 WORKDIR /app
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
+# Copy dependency files first to leverage Docker layer caching
+COPY go.mod ./
+# If go.sum doesn't exist yet, Docker will fail here. 
+# Using a wildcard 'go.sum*' ensures it copies if it exists, but doesn't crash if it doesn't.
+COPY go.sum* ./
 
 # Download dependencies
 RUN go mod download
 
-# Copy the source code
+# Now copy the rest of the source code
 COPY . .
 
-# Build the application
+# Build the binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o main .
 
 # --- Final Stage ---
 FROM alpine:latest
-
+RUN apk add --no-cache ca-certificates
 WORKDIR /root/
-
-# Copy the binary from the builder stage
 COPY --from=builder /app/main .
 
-# Command to run the executable
 CMD ["./main"]
