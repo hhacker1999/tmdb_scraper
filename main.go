@@ -39,6 +39,7 @@ func main() {
 	repo := NewRepo(db)
 	err = repo.CreateDb()
 	if err != nil {
+    log.Fatal(err)
 		return
 	}
 
