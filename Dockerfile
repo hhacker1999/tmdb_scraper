@@ -1,6 +1,5 @@
 # Specifies a parent image
-FROM golang:1.19.2-bullseye
- 
+FROM golang:1.19 
 # Creates an app directory to hold your app’s source code
 WORKDIR /app
  
