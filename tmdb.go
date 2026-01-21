@@ -173,7 +173,7 @@ func (u *Usecase) GetShowDetails(id string, at string) (models.TMDBShow, error) 
 			seasonKey := fmt.Sprintf("season/%d", currSeason.SeasonNumber)
 			url += seasonKey
 			keys = append(keys, seasonKey)
-			if index != maxIndex && maxIndex != len(details.Seasons)-1 {
+			if index < len(details.Seasons)-1 && index < maxIndex {
 				url += ","
 			}
 		}
@@ -218,14 +218,19 @@ func (u *Usecase) GetShowDetails(id string, at string) (models.TMDBShow, error) 
 		}
 		for _, k := range keys {
 			var temp models.Season
-			err = json.Unmarshal(rawMap[k], &temp)
+			data, ok := rawMap[k]
+			if !ok {
+				fmt.Println("could not find data for season ", k)
+				continue
+			}
+			err = json.Unmarshal(data, &temp)
 			if err != nil {
 				fmt.Println("Error unmarshalling show season response", err)
-			return details, fmt.Errorf(
-				"Error unmarshalling season response %v %s\n",
-				err,
-				string(rawMap[k]),
-			)
+				return details, fmt.Errorf(
+					"Error unmarshalling show season response %v %s\n",
+					err,
+					string(data),
+				)
 			}
 			seasons = append(seasons, temp)
 		}
