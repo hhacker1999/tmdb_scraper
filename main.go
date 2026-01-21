@@ -33,7 +33,6 @@ func main() {
 	}
 
 	log.Println("Connected to Postgres.")
-
 	client := NewClient()
 	uc := NewUsecase(url, client)
 

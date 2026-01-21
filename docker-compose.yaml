@@ -14,12 +14,14 @@ services:
       - tmdb-net
 
   app:
-    build: .
+    build:
+      context: .
+      network: host
     container_name: tmdb_scraper
     depends_on:
       - db
     environment:
-      - DB_URL=postgres://pg:pg@tmdb:5432/postgres_db?sslmode=disable
+      - DB_URL=postgres://pg:pg@postgres_db:5432/tmdb?sslmode=disable
       - TMDB_AT=your_access_token_here
       - TMDB_BASE_URL=https://api.themoviedb.org/3
     restart: unless-stopped
