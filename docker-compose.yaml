@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: pg
+      POSTGRES_PASSWORD: pg
+      POSTGRES_DB: tmdb
+    ports:
+      - "5555:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - tmdb-net
+
+  app:
+    build: .
+    container_name: tmdb_scraper
+    depends_on:
+      - db
+    environment:
+      - DB_URL=postgres://pg:pg@tmdb:5432/postgres_db?sslmode=disable
+      - TMDB_AT=your_access_token_here
+      - TMDB_BASE_URL=https://api.themoviedb.org/3
+    restart: unless-stopped
+    networks:
+      - tmdb-net
+
+networks:
+  tmdb-net:
+    external: true
