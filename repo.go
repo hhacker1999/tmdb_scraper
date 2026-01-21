@@ -2,7 +2,7 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
 )
 
 type Repo struct {
@@ -23,7 +23,7 @@ func (r *Repo) CreateDb() error {
     type varchar(10) not null
     )`)
 	if err != nil {
-		fmt.Println("Error creating details table", err)
+		log.Println("Error creating details table", err)
 		return err
 	}
 
@@ -32,7 +32,7 @@ func (r *Repo) CreateDb() error {
     progress int
     )`)
 	if err != nil {
-		fmt.Println("Error creating movie_progress table", err)
+		log.Println("Error creating movie_progress table", err)
 		return err
 	}
 
@@ -41,7 +41,7 @@ func (r *Repo) CreateDb() error {
     progress int
     )`)
 	if err != nil {
-		fmt.Println("Error creating show_progress table", err)
+		log.Println("Error creating show_progress table", err)
 		return err
 	}
 
@@ -52,7 +52,7 @@ func (r *Repo) CreateDb() error {
     error text not null
     )`)
 	if err != nil {
-		fmt.Println("Error creating failed table", err)
+		log.Println("Error creating failed table", err)
 		return err
 	}
 
@@ -95,7 +95,7 @@ func (r *Repo) InsertError(id int, tp string, er string) error {
 		tp,
 	)
 	if err != nil {
-		fmt.Println("Error storing failed", err)
+		log.Println("Error storing failed", err)
 	}
 	return err
 }
