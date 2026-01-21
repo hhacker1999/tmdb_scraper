@@ -15,8 +15,6 @@ import (
 )
 
 func main() {
-	// dsn := "postgres://postgres:postgres@192.168.1.50:5433/pgdb?sslmode=disable"
-
 	dsn := os.Getenv("DB_URL")
 	at := os.Getenv("TMDB_AT")
 	url := os.Getenv("TMDB_BASE_URL")
@@ -98,7 +96,7 @@ func NewClient() *HttpClient {
 		client:  tmdbClient,
 		active:  make(map[*http.Request]chan *Res),
 		mtx:     &sync.Mutex{},
-		delay:   150,
+		delay:   200,
 	}
 	go client.Start()
 	return client
