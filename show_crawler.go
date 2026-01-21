@@ -31,7 +31,6 @@ func (m *ShowCrwaler) Start() error {
 	fmt.Println("Starting crawler for shows from index", index)
 	for i := index + 1; i <= m.shows; i++ {
 		v := i
-		fmt.Println("Geting info for show", v)
 		details, err := m.usecase.GetShowDetails(fmt.Sprintf("%d", v), m.at)
 		if err != nil {
 			fmt.Println("Error getting show details for", v)
@@ -52,7 +51,7 @@ func (m *ShowCrwaler) Start() error {
 				if err != nil {
 					fmt.Println("Error storing show progress", err)
 				} else {
-					fmt.Println("Show details stored for", v)
+					// fmt.Println("Show details stored for", v)
 				}
 			}
 		}

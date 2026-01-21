@@ -29,3 +29,4 @@ services:
 networks:
   tmdb-net:
     external: true
+    name: tmdb-net

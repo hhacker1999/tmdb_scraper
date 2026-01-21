@@ -31,7 +31,6 @@ func (m *MovieCrwaler) Start() error {
 	fmt.Println("Starting crawler for movies from index", index)
 	for i := index + 1; i <= m.movies; i++ {
 		v := i
-		fmt.Println("Geting info for movie", v)
 		details, err := m.usecase.GetMovieDetails(fmt.Sprintf("%d", v), m.at)
 		if err != nil {
 			fmt.Println("Error getting movie details for", v)
@@ -52,7 +51,7 @@ func (m *MovieCrwaler) Start() error {
 				if err != nil {
 					fmt.Println("Error storing movie progress", err)
 				} else {
-					fmt.Println("Movie details stored for", v)
+					// fmt.Println("Movie details stored for", v)
 				}
 			}
 		}
