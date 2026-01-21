@@ -13,4 +13,4 @@ RUN go mod download
 RUN go build -o /scraper
  
 # Specifies the executable command that runs when the container starts
-CMD [ “/scraper” ]
+CMD [ "/scraper" ]
