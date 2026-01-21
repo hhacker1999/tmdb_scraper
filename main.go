@@ -19,6 +19,7 @@ func main() {
 	at := os.Getenv("TMDB_AT")
 	url := os.Getenv("TMDB_BASE_URL")
 
+  log.Println("Connecting to db")
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatal(err)
