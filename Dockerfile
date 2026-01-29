@@ -1,17 +1,34 @@
-# Specifies a parent image
-FROM golang:1.24.4
-# Creates an app directory to hold your app’s source code
+# Stage 1: The "Heavy" Build Stage
+FROM golang:1.23-alpine AS builder
+
+# Install git if your go.mod has private repos or specific modules
+RUN apk add --no-cache git
+
 WORKDIR /app
- 
-# Copies everything from your root directory into /app
-COPY . .
- 
-# Installs Go dependencies
+
+# Only copy files needed for dependency resolution
+COPY go.mod go.sum ./
 RUN go mod download
- 
-# Builds your app with optional configuration
-RUN go build -o /scraper
- 
+
+# Copy the source code (filtered by .dockerignore)
+COPY . .
+
+# Build a statically linked binary (CGO_ENABLED=0 is key for alpine)
+RUN CGO_ENABLED=0 GOOS=linux go build -o /scraper .
+
+# Stage 2: The "Tiny" Final Stage
+# This is the only part that gets "exported" as your final image
+FROM alpine:3.19
+
+WORKDIR /app
+
+# Only copy the result from the builder
+COPY --from=builder /scraper .
+
+# Add CA certificates so the app can download from IMDb (HTTPS)
+RUN apk --no-cache add ca-certificates
+
 EXPOSE 6996
-# Specifies the executable command that runs when the container starts
-CMD [ "/scraper" ]
+
+# Run the app
+CMD ["./scraper"]
