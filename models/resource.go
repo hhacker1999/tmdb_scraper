@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type PaginatedResponse struct {
 	Pages        int
 	TotalPages   int
@@ -134,6 +136,8 @@ type TMDBShow struct {
 	Credits             Credits             `json:"credits"`
 	Images              Images              `json:"images"`
 	Similar             SimilarShow         `json:"similar"`
+	Recommendations     SimilarShow         `json:"recommendations"`
+	Videos              Videos              `json:"videos"`
 }
 
 type GuestStar struct {
@@ -194,6 +198,8 @@ type TMDBMovie struct {
 	VoteCount           int64               `json:"vote_count"`
 	Images              Images              `json:"images"`
 	Similar             SimilarMovie        `json:"similar"`
+	Recommendations     SimilarMovie        `json:"recommendations"`
+	Videos              Videos              `json:"videos"`
 }
 
 type BelongsToCollection struct {
@@ -302,4 +308,21 @@ type Part struct {
 	Video            bool    `json:"video"`
 	VoteAverage      float64 `json:"vote_average"`
 	VoteCount        int64   `json:"vote_count"`
+}
+
+type Videos struct {
+	Results []Result `json:"results"`
+}
+
+type Result struct {
+	ISO639_1    string    `json:"iso_639_1"`
+	ISO3166_1   string    `json:"iso_3166_1"`
+	Name        string    `json:"name"`
+	Key         string    `json:"key"`
+	Site        string    `json:"site"`
+	Size        int64     `json:"size"`
+	Type        string    `json:"type"`
+	Official    bool      `json:"official"`
+	PublishedAt time.Time `json:"published_at"`
+	ID          string    `json:"id"`
 }

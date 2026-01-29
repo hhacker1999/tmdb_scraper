@@ -56,12 +56,22 @@ func (r *Repo) CreateDb() error {
 		return err
 	}
 
+	_, err = r.db.Exec(`create table if not exists not_found (
+    id serial primary key,
+    type varchar(10) not null,
+    tmdb_id int not null
+    )`)
+	if err != nil {
+		log.Println("Error creating failed table", err)
+		return err
+	}
+
 	return nil
 }
 
 func (r *Repo) StoreDetails(id int, details []byte, tp string) error {
 	_, err := r.db.Exec(
-		`insert into details (tmdb_id, type, data) values($1, $2, $3)`,
+		`insert into details (tmdb_id, type, data) values($1, $2, $3) on conflict(tmdb_id, type) do update set data = excluded.data`,
 		id,
 		tp,
 		details,
@@ -104,9 +114,9 @@ func (r *Repo) GetMovieProgress() (int, error) {
 	var res int
 	row := r.db.QueryRow(`select progress from movie_progress where id = 1`)
 	err := row.Scan(&res)
-  if err == sql.ErrNoRows {
-    return 0 , nil
-  }
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
 	return res, err
 }
 
@@ -114,8 +124,48 @@ func (r *Repo) GetShowProgress() (int, error) {
 	var res int
 	row := r.db.QueryRow(`select progress from show_progress where id = 1`)
 	err := row.Scan(&res)
-  if err == sql.ErrNoRows {
-    return 0 , nil
-  }
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
 	return res, err
+}
+
+func (r *Repo) ItemExists(tp string, tmdbId int) (bool, error) {
+	var res int
+	row := r.db.QueryRow(
+		`select count(*) from details where type = $1 and tmdb_id = $2`,
+		tp,
+		tmdbId,
+	)
+	err := row.Scan(&res)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return res != 0, err
+}
+
+func (r *Repo) NotFoundExists(tp string, tmdbId int) (bool, error) {
+	var res int
+	row := r.db.QueryRow(
+		`select count(*) from not_found where type = $1 and tmdb_id = $2`,
+		tp,
+		tmdbId,
+	)
+	err := row.Scan(&res)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return res != 0, err
+}
+
+func (r *Repo) InsertNotFound(id int, tp string) error {
+	_, err := r.db.Exec(
+		`insert into not_found (tmdb_id, type) values($1, $2) on conflict (tmdb_id, type) do nothing`,
+		id,
+		tp,
+	)
+	if err != nil {
+		log.Println("Error storing failed", err)
+	}
+	return err
 }

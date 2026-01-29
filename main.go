@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -18,8 +21,13 @@ func main() {
 	dsn := os.Getenv("DB_URL")
 	at := os.Getenv("TMDB_AT")
 	url := os.Getenv("TMDB_BASE_URL")
+	dataDir := os.Getenv("DATA_DIR")
+	// dsn = "postgres://pg:pg@192.168.1.50:5555/tmdb?sslmode=disable"
+	// at = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NWJjYTJhN2NhODdkNTZkZGZlMDgyZDAzOWNiZjk1ZiIsIm5iZiI6MTY1MDA0MzA3My4wMTksInN1YiI6IjYyNTlhOGMxZWNhZWY1MTVmZjY3OGY3MyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.EppXuTBWBa1uXJgfie3m7lKAEpspRwnc_aHr33UBkHU"
+	// dataDir = "./"
+	// url = "https://api.themoviedb.org/3"
 
-  log.Println("Connecting to db")
+	log.Println("Connecting to db")
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +47,7 @@ func main() {
 	repo := NewRepo(db)
 	err = repo.CreateDb()
 	if err != nil {
-    log.Fatal(err)
+		log.Fatal(err)
 		return
 	}
 
@@ -54,8 +62,118 @@ func main() {
 		repo,
 	)
 
-	go mc.Start()
-	go sc.Start()
+	imdbI := NewIMDbImporter(db, dataDir)
+
+	manager := NewScrapeManager(sc, mc, imdbI)
+
+	http.HandleFunc("GET /stats", func(w http.ResponseWriter, r *http.Request) {
+		stats, err := manager.GetStats()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+		body, _ := json.Marshal(stats)
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
+	})
+
+	http.HandleFunc("POST /start", func(w http.ResponseWriter, r *http.Request) {
+		type Input struct {
+			Tp        string `json:"type"`
+			Start     int    `json:"start"`
+			End       int    `json:"end"`
+			Overwrite bool   `json:"overwrite"`
+		}
+		var input Input
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println("Error reading body", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer r.Body.Close()
+
+		err = json.Unmarshal(bodyBytes, &input)
+		if err != nil {
+			fmt.Println("Error unmarshalling body", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if input.Tp != "movie" && input.Tp != "show" && input.Tp != "imdb" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Invalid type"))
+			return
+		}
+
+		if input.Tp == "movie" {
+			manager.StartMovieSync(input.Start, input.End, input.Overwrite)
+		}
+
+		if input.Tp == "show" {
+			manager.StartShowSync(input.Start, input.End, input.Overwrite)
+		}
+
+		if input.Tp == "imdb" {
+			manager.StartIMDBSync()
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Process started successfully"))
+	})
+
+	http.HandleFunc("POST /stop", func(w http.ResponseWriter, r *http.Request) {
+		type Input struct {
+			Tp        string `json:"type"`
+			Start     int    `json:"start"`
+			End       int    `json:"end"`
+			Overwrite bool   `json:"overwrite"`
+		}
+		var input Input
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			fmt.Println("Error reading body", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer r.Body.Close()
+
+		err = json.Unmarshal(bodyBytes, &input)
+		if err != nil {
+			fmt.Println("Error unmarshalling body", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if input.Tp != "movie" && input.Tp != "show" && input.Tp != "imdb" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Invalid type"))
+			return
+		}
+
+		if input.Tp == "movie" {
+			manager.StopMovieScrape()
+		}
+
+		if input.Tp == "show" {
+			manager.StopShowScrape()
+		}
+
+		if input.Tp == "imdb" {
+			manager.StopImdbScrape()
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Process stopped successfully"))
+	})
+
+	go func() {
+		fmt.Println("Starting http server")
+		err = http.ListenAndServe(":6996", nil)
+		if err != nil {
+			fmt.Println("Error starting http server", err)
+			return
+		}
+	}()
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
@@ -63,8 +181,8 @@ func main() {
 	<-sig
 
 	log.Println("Shutting down...")
+	manager.ShutDown()
 	db.Close()
-
 }
 
 type Res struct {

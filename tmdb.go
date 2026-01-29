@@ -24,8 +24,9 @@ func NewUsecase(tmdbApiBaseUrl string, client *HttpClient) *Usecase {
 func (u *Usecase) GetMovieDetails(id string, at string) (models.TMDBMovie, error) {
 	var response models.TMDBMovie
 	url := fmt.Sprintf(
-		"%s/movie/%s?append_to_response=credits,images,external_ids,similar,belongs_to_collection",
-		u.tmdbApiBaseUrl, id,
+		"%s/movie/%s?append_to_response=credits,images,external_ids,similar,belongs_to_collection,videos,recommendations",
+		u.tmdbApiBaseUrl,
+		id,
 	)
 
 	req, _ := http.NewRequest("GET", url, nil)
@@ -44,6 +45,9 @@ func (u *Usecase) GetMovieDetails(id string, at string) (models.TMDBMovie, error
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusNotFound {
+			return response, fmt.Errorf("not found")
+		}
 		fmt.Println("Invalid status code from get movie request to TMDB", res.StatusCode)
 		return response, fmt.Errorf("Getting invalid status code %d for %s", res.StatusCode, id)
 	}
@@ -109,7 +113,7 @@ func (u *Usecase) GetMovieDetails(id string, at string) (models.TMDBMovie, error
 func (u *Usecase) GetShowDetails(id string, at string) (models.TMDBShow, error) {
 	var details models.TMDBShow
 	url := fmt.Sprintf(
-		"%s/tv/%s?append_to_response=credits,external_ids,images,similar",
+		"%s/tv/%s?append_to_response=credits,external_ids,images,similar,recommendations,videos",
 		u.tmdbApiBaseUrl, id,
 	)
 
@@ -135,6 +139,9 @@ func (u *Usecase) GetShowDetails(id string, at string) (models.TMDBShow, error) 
 	}
 
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusNotFound {
+			return details, fmt.Errorf("not found")
+		}
 		fmt.Println(
 			"Invalid status code from get series request to TMDB",
 			res.StatusCode,
