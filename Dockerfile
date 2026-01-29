@@ -12,5 +12,6 @@ RUN go mod download
 # Builds your app with optional configuration
 RUN go build -o /scraper
  
+EXPOSE 6996
 # Specifies the executable command that runs when the container starts
 CMD [ "/scraper" ]
