@@ -23,7 +23,6 @@ func main() {
 	url := os.Getenv("TMDB_BASE_URL")
 	dataDir := os.Getenv("DATA_DIR")
 	// dsn = "postgres://pg:pg@192.168.1.50:5555/tmdb?sslmode=disable"
-	// at = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2NWJjYTJhN2NhODdkNTZkZGZlMDgyZDAzOWNiZjk1ZiIsIm5iZiI6MTY1MDA0MzA3My4wMTksInN1YiI6IjYyNTlhOGMxZWNhZWY1MTVmZjY3OGY3MyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.EppXuTBWBa1uXJgfie3m7lKAEpspRwnc_aHr33UBkHU"
 	// dataDir = "./"
 	// url = "https://api.themoviedb.org/3"
 
