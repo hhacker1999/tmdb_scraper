@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -17,12 +18,30 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const movie = "movie"
+const show = "show"
+const imdb = "imdb"
+const fail_movie = "fail_movie"
+const fail_show = "fail_show"
+const change_show = "change_show"
+const change_movie = "change_movie"
+
+var jobs = []string{
+	movie,
+	show,
+	imdb,
+	fail_movie,
+	fail_show,
+	change_movie,
+	change_show,
+}
+
 func main() {
 	dsn := os.Getenv("DB_URL")
 	at := os.Getenv("TMDB_AT")
 	url := os.Getenv("TMDB_BASE_URL")
 	dataDir := os.Getenv("DATA_DIR")
-	// dsn = "postgres://pg:pg@192.168.1.50:5555/tmdb?sslmode=disable"
+	// dsn = "postgres://pg:pg@10.8.0.1:5555/tmdb?sslmode=disable"
 	// dataDir = "./"
 	// url = "https://api.themoviedb.org/3"
 
@@ -77,12 +96,19 @@ func main() {
 		w.Write(body)
 	})
 
+	http.HandleFunc("GET /jobs", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := json.Marshal(jobs)
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
+	})
+
 	http.HandleFunc("POST /start", func(w http.ResponseWriter, r *http.Request) {
 		type Input struct {
 			Tp        string `json:"type"`
 			Start     int    `json:"start"`
 			End       int    `json:"end"`
 			Overwrite bool   `json:"overwrite"`
+			Days      int    `json:"days"`
 		}
 		var input Input
 		bodyBytes, err := io.ReadAll(r.Body)
@@ -99,22 +125,44 @@ func main() {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if input.Tp != "movie" && input.Tp != "show" && input.Tp != "imdb" {
+
+		if !slices.Contains(jobs, input.Tp) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Invalid type"))
 			return
 		}
 
-		if input.Tp == "movie" {
-			manager.StartMovieSync(input.Start, input.End, input.Overwrite)
+		if input.Tp == movie {
+			err = manager.StartMovieSync(input.Start, input.End, input.Overwrite)
 		}
 
-		if input.Tp == "show" {
-			manager.StartShowSync(input.Start, input.End, input.Overwrite)
+		if input.Tp == show {
+			err = manager.StartShowSync(input.Start, input.End, input.Overwrite)
 		}
 
-		if input.Tp == "imdb" {
-			manager.StartIMDBSync()
+		if input.Tp == imdb {
+			err = manager.StartIMDBSync()
+		}
+
+		if input.Tp == fail_show {
+			err = manager.StartFailSyncShow()
+		}
+
+		if input.Tp == fail_movie {
+			err = manager.StartFailSyncMovie()
+		}
+
+		if input.Tp == change_movie {
+			err = manager.StartChangeSyncMovie(input.Days)
+		}
+
+		if input.Tp == change_show {
+			err = manager.StartChangeSyncShow(input.Days)
+		}
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -143,22 +191,39 @@ func main() {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		if input.Tp != "movie" && input.Tp != "show" && input.Tp != "imdb" {
+
+		if !slices.Contains(jobs, input.Tp) {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("Invalid type"))
 			return
 		}
 
-		if input.Tp == "movie" {
+		if input.Tp == movie {
 			manager.StopMovieScrape()
 		}
 
-		if input.Tp == "show" {
+		if input.Tp == show {
 			manager.StopShowScrape()
 		}
 
-		if input.Tp == "imdb" {
+		if input.Tp == imdb {
 			manager.StopImdbScrape()
+		}
+
+		if input.Tp == fail_show {
+			manager.StopFailSyncShow()
+		}
+
+		if input.Tp == fail_movie {
+			manager.StopFailSyncMovie()
+		}
+
+		if input.Tp == change_movie {
+			manager.StopChangeSyncMovie()
+		}
+
+		if input.Tp == change_show {
+			manager.StopChangeSyncShow()
 		}
 
 		w.WriteHeader(http.StatusOK)

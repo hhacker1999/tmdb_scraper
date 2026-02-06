@@ -326,3 +326,15 @@ type Result struct {
 	PublishedAt time.Time `json:"published_at"`
 	ID          string    `json:"id"`
 }
+
+type ChangeResponse struct {
+	Results      []ChangeResult `json:"results"`
+	Page         int            `json:"page"`
+	TotalPages   int            `json:"total_pages"`
+	TotalResults int            `json:"total_results"`
+}
+
+type ChangeResult struct {
+	ID    int   `json:"id"`
+	Adult *bool `json:"adult"`
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 )
 
@@ -166,6 +167,50 @@ func (r *Repo) InsertNotFound(id int, tp string) error {
 	)
 	if err != nil {
 		log.Println("Error storing failed", err)
+	}
+	return err
+}
+
+func (r *Repo) GetFailed(isMovie bool) ([]int, error) {
+	var res []int
+	tp := "show"
+	if isMovie {
+		tp = "movie"
+	}
+
+	rows, err := r.db.Query(`select tmdb_id from failed where type = $1`, tp)
+	defer rows.Close()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return res, nil
+		}
+
+		fmt.Println("Error getting failed items", err)
+		return res, err
+	}
+
+	for rows.Next() {
+		var temp int
+		err = rows.Scan(&temp)
+		if err != nil {
+			fmt.Println("Error scanning failed item", err)
+			return res, err
+		}
+		res = append(res, temp)
+	}
+
+	return res, nil
+}
+
+func (r *Repo) RemoveFailed(isMovie bool, id int) error {
+	tp := "show"
+	if isMovie {
+		tp = "movie"
+	}
+
+	_, err := r.db.Exec(`delete from failed where tmdb_id = $1 and type = $2`, id, tp)
+	if err != nil {
+		fmt.Println("Error deleting failed items", err)
 	}
 	return err
 }

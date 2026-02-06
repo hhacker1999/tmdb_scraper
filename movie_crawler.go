@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type MovieCrwaler struct {
-	usecase *Usecase
-	at      string
-	repo    *Repo
+	usecase        *Usecase
+	at             string
+	repo           *Repo
+	changeSyncPage int
 }
 
 func NewMovieCrawler(usecase *Usecase, at string, repo *Repo) *MovieCrwaler {
@@ -25,7 +27,7 @@ func (m *MovieCrwaler) Start(ctx context.Context, start int, end int, overwrite 
 		end = 2000000
 	}
 	if start == 0 {
-		index, err := m.GetMovieProgress()
+		index, _, err := m.GetMovieProgress()
 		if err != nil {
 			return err
 		}
@@ -75,24 +77,27 @@ func (m *MovieCrwaler) Start(ctx context.Context, start int, end int, overwrite 
 				} else {
 					m.repo.InsertError(v, "movie", err.Error())
 				}
+				m.repo.UpdateMovieProgress(v)
 			} else {
 				bt, err := json.Marshal(details)
 				if err != nil {
 					fmt.Printf("Error marhsalling movie data %d %v\n", v, err)
 					m.repo.InsertError(v, "movie", err.Error())
+					m.repo.UpdateMovieProgress(v)
 				} else {
 					err := m.repo.StoreDetails(v, bt, "movie")
 					if err != nil {
 						fmt.Println("Error storing data in db")
 						m.repo.InsertError(v, "movie", err.Error())
+						m.repo.UpdateMovieProgress(v)
 						continue
 					}
 					err = m.repo.UpdateMovieProgress(v)
 					if err != nil {
 						fmt.Println("Error storing movie progress", err)
-					} else {
-						fmt.Println("Movie details stored for", v)
 					}
+					fmt.Println("Movie details stored for", v)
+
 				}
 			}
 		}
@@ -101,6 +106,110 @@ func (m *MovieCrwaler) Start(ctx context.Context, start int, end int, overwrite 
 	return nil
 }
 
-func (m *MovieCrwaler) GetMovieProgress() (int, error) {
-	return m.repo.GetMovieProgress()
+func (m *MovieCrwaler) StartFailedJob(ctx context.Context) error {
+	failed, err := m.repo.GetFailed(true)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Found %d failed movies\n", len(failed))
+	for _, v := range failed {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			details, err := m.usecase.GetMovieDetails(fmt.Sprintf("%d", v), m.at)
+			if err != nil {
+				fmt.Println("Error getting movie details for ", v, err)
+				continue
+			}
+			bd, err := json.Marshal(details)
+			if err != nil {
+				fmt.Println("Error unmarshalling movie details for ", v, err)
+				continue
+			}
+			err = m.repo.StoreDetails(v, bd, "movie")
+			if err != nil {
+				fmt.Println("Error storing movie details for ", v, err)
+				continue
+			}
+			m.repo.RemoveFailed(true, v)
+		}
+	}
+
+	return nil
+}
+
+func (m *MovieCrwaler) StartChangesSyncJob(ctx context.Context, days int) error {
+	m.changeSyncPage = 0
+	format := "2006-01-02"
+	end := time.Now()
+	start := end.AddDate(0, 0, -days)
+	endDate := end.Format(format)
+	startDate := start.Format(format)
+	failed, err := m.usecase.GetMovieChanges(1, startDate, endDate, true, m.at)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Found total movie changes ", failed.TotalResults)
+	m.changeSyncPage = 1
+	for _, res := range failed.Results {
+		v := res.ID
+		if res.Adult == nil {
+			continue
+		}
+		details, err := m.usecase.GetMovieDetails(fmt.Sprintf("%d", v), m.at)
+		if err != nil {
+			fmt.Println("Error getting movie details for ", v, err)
+		} else {
+			bd, err := json.Marshal(details)
+			if err != nil {
+				fmt.Println("Error unmarshalling movie details for ", v, err)
+			} else {
+				err = m.repo.StoreDetails(v, bd, "movie")
+				if err != nil {
+					fmt.Println("Error storing movie details for ", v, err)
+				}
+			}
+		}
+	}
+	for i := 2; i <= failed.TotalPages; i++ {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			failed, err = m.usecase.GetMovieChanges(i, startDate, endDate, true, m.at)
+			if err != nil {
+				continue
+			}
+			m.changeSyncPage = i
+		inner:
+			for _, res := range failed.Results {
+				v := res.ID
+				if res.Adult == nil {
+					continue
+				}
+				details, err := m.usecase.GetMovieDetails(fmt.Sprintf("%d", v), m.at)
+				if err != nil {
+					fmt.Println("Error getting movie details for ", v, err)
+					continue inner
+				}
+				bd, err := json.Marshal(details)
+				if err != nil {
+					fmt.Println("Error unmarshalling movie details for ", v, err)
+					continue inner
+				}
+				err = m.repo.StoreDetails(v, bd, "movie")
+				if err != nil {
+					fmt.Println("Error storing movie details for ", v, err)
+					continue inner
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (m *MovieCrwaler) GetMovieProgress() (int, int, error) {
+	mProgress, err := m.repo.GetMovieProgress()
+	return mProgress, m.changeSyncPage, err
 }

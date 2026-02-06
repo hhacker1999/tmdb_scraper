@@ -247,3 +247,57 @@ func (u *Usecase) GetShowDetails(id string, at string) (models.TMDBShow, error) 
 
 	return details, nil
 }
+
+func (u *Usecase) GetMovieChanges(
+	page int,
+	start string,
+	end string,
+	isMovie bool,
+	at string,
+) (models.ChangeResponse, error) {
+	var res models.ChangeResponse
+	tp := "tv"
+	if isMovie {
+		tp = "movie"
+	}
+	url := fmt.Sprintf(
+		"%s/%s/changes?page=%d&start_date=%s&end_date=%s",
+		u.tmdbApiBaseUrl,
+		tp,
+		page,
+		start,
+		end,
+	)
+	fmt.Println(url)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		fmt.Println("Error creating changes request", err)
+		return res, err
+	}
+	req.Header.Add("accept", "application/json")
+	req.Header.Add(
+		"Authorization",
+		fmt.Sprintf("Bearer %s", at),
+	)
+
+	resp, err := u.client.Do(req)
+	if err != nil {
+		fmt.Println("Error doing http request for changes api", err)
+		return res, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading request for changes api", err)
+		return res, err
+	}
+
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		fmt.Println("Error unmarshalling changes api response", err)
+	}
+
+	return res, nil
+}
