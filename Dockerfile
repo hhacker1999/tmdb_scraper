@@ -1,5 +1,5 @@
 # Stage 1: The "Heavy" Build Stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24.4-alpine AS builder
 
 # Install git if your go.mod has private repos or specific modules
 RUN apk add --no-cache git
