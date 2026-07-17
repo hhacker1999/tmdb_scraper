@@ -92,12 +92,14 @@ func main() {
 			return
 		}
 		body, _ := json.Marshal(stats)
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(body)
 	})
 
 	http.HandleFunc("GET /jobs", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := json.Marshal(jobs)
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(body)
 	})
